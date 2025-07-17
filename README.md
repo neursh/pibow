@@ -39,7 +39,7 @@ The node follows a simple rule: "Nothing is trusted". The server must request a 
 - `[UDP]` Upon receiving a discover message from a node on the multicast channel, solve the challenge.
 - `[TCP]` Connect to the TCP port on node's IP address, send back the awnswer with server response flag: `[69, 1, ...]`.
 
-### III. Communication
+### III. Request actions
 - `[TCP]` Client will either reject and disconnect the connection. Or send back a confirmation message, the connection will stay connected from here.
 - Fetch the ID sent by the node, save it to let administrator name the node for easier access, also keeping a query to know which socket to send the turn on action to, keep the ID unless deleted by the admin, since the ID cannot be changed on the node.
 - `[TCP]` On action given by users, ask for a hash challenge on the selected node (`[72, 65]`).
