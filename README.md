@@ -9,7 +9,7 @@ This ensures flexibility for the main server, like install a proxy service to re
 
 The node follows a simple rule: "Nothing is trusted". The server must request a new one-time hash challenge, and include the answer on the next message. If the attempt succeeded, the node will send a success flag.
 
-# Negotiation
+# Communication
 ## Pico W (node)
 ### I. Prerequisites
 - On binary build, the administrator must provide full Wifi details to connect to and a secret hash key, this key must be shared with the server.
