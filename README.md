@@ -18,7 +18,7 @@ The node follows a simple rule: "Nothing is trusted". The server must request a 
   - UDP: Multicast available signal to the network to let the server discover online nodes.
 
 ### II. Discover the server
-- `[UDP]` Send a discover message on the multicast channel, resend after 5 seconds with no response, with the first 2 bytes is the message type, and the rest 128 bytes is a random challenge that changes when the node goes in discover mode: `[69, 0, ...]`.
+- `[UDP]` Send a discover message on the multicast channel, resend after 5 seconds when getting no response, with the first 2 bytes is the message type, and the rest 128 bytes is a random challenge that changes when the node goes in discover mode: `[69, 0, ...]`.
 - `[TCP]` Upon receiving a server response message with the correct answer (`[69, 1, ...]`), stop spamming the heck out of the multicast, otherwise just cancel the stream.
 - `[TCP]` Send a confirmation message over to server with the Pi's unique ID: `[69, 2, ...<4 bytes>]`.
 
