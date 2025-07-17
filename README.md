@@ -12,7 +12,7 @@ The node follows a simple rule: "Nothing is trusted". The server must request a 
 # Negotiation
 ## Pico W (node)
 ### I. Prerequisites
-- On binary build, the administrator would set a secret hash key, this key must be shared with the server.
+- On binary build, the administrator must provide full Wifi details to connect to and a secret hash key, this key must be shared with the server.
 - When started, Pico W will open 2 ports, one for TCP server, one for UDP endpoint:
   - TCP: Let the server contact and request a jumpstart + send back success message reliably.
   - UDP: Multicast available signal to the network to let the server discover online nodes.
