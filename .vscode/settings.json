@@ -1,0 +1,15 @@
+{
+  "eslint.format.enable": true,
+  "editor.formatOnSave": true,
+  "prettier.enable": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 4,
+  "editor.detectIndentation": false,
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.check.extraArgs": ["--target", "thumbv6m-none-eabi"],
+  "[rust]": {
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "jinxdash.prettier-rust"
+  }
+}

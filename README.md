@@ -9,6 +9,11 @@ This ensures flexibility for the main server, like install a proxy service to re
 
 The node follows a simple rule: "Nothing is trusted". The server must request a new one-time hash challenge, and include the answer on the next message. If the attempt succeeded, the node will send a success flag.
 
+```
+I can't get embassy to work from the online crate, so I cloned the whole thing to my workspace.
+So before building, clone embassy and place it at the project's parent folder (same level as this readme)
+```
+
 # Communication
 ## Pico W (node)
 ### I. Prerequisites
