@@ -15,7 +15,7 @@ pub async fn invoke(spawner: Spawner, net_device: Device<'static>) -> Stack<'sta
     let seed = RoscRng.next_u64();
 
     // Init network stack
-    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<6>> = StaticCell::new();
     let (stack, runner) = embassy_net::new(
         net_device,
         config,
