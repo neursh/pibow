@@ -13,7 +13,7 @@ use embassy_rp::clocks::RoscRng;
 use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel };
 use crate::{
     consts::SECRET_HASH_KEY,
-    phases::{ connect_wifi, board, listen_answer, poke_server, setup_wifi },
+    phases::{ board, connect_wifi, listen_answer, poke_server, server_contact, setup_wifi },
 };
 
 use ::{ defmt_rtt as _ };
@@ -33,39 +33,41 @@ async fn main(spawner: Spawner) {
     // Initialize the Wifi stack.
     let stack = setup_wifi::invoke(spawner, net_device).await;
 
+    // Conenct to the Wifi.
+    connect_wifi::invoke(&mut control, &stack).await;
+
+    let mac_address = control.address().await;
+
     loop {
-        // Conenct to the Wifi.
-        connect_wifi::invoke(&mut control, &stack).await;
+        // Add a cancel poke channel.
+        let cancel_poke: Channel<CriticalSectionRawMutex, bool, 1> = Channel::new();
+        let cancel_poke_recv = cancel_poke.receiver();
+        let cancel_poke_send = cancel_poke.sender();
 
-        loop {
-            // Add a cancel poke channel.
-            let cancel_poke: Channel<CriticalSectionRawMutex, bool, 1> = Channel::new();
-            let cancel_poke_recv = cancel_poke.receiver();
-            let cancel_poke_send = cancel_poke.sender();
-
-            // Create a hash challenge and cast it to the UDP channel.
-            let mut challenge = [0_u8; 128];
-            for index in 0..128 {
-                challenge[index] = RoscRng::next_u8();
-            }
-            let expected_answer = blake3::keyed_hash(SECRET_HASH_KEY, &challenge);
-
-            // Create a UDP multicast socket to poke the server.
-            // Since the poke server will run forever, the cancel channel is used to drop this task.
-            // It will be dropped by accept_answer when a good server contacted it.
-            let poke_server = select(
-                cancel_poke_recv.receive(),
-                poke_server::invoke(stack, &challenge)
-            );
-
-            // Receive the remote address of the server. We will then connect back to this under a defined port.
-            let (_, remote_addr) = join(
-                poke_server,
-                listen_answer::invoke(stack, expected_answer, cancel_poke_send)
-            ).await;
-
-            // Found connection, light up!
-            control.gpio_set(0, true).await;
+        // Create a hash challenge and cast it to the UDP channel.
+        let mut challenge = [0_u8; 128];
+        for index in 0..128 {
+            challenge[index] = RoscRng::next_u8();
         }
+        let expected_answer = blake3::keyed_hash(SECRET_HASH_KEY, &challenge);
+
+        // Create a UDP multicast socket to poke the server.
+        // Since the poke server will run forever, the cancel channel is used to drop this task.
+        // It will be dropped by accept_answer when a good server contacted it.
+        let poke_server = select(
+            cancel_poke_recv.receive(),
+            poke_server::invoke(stack, &challenge)
+        );
+
+        // Receive the remote address of the server. We will then connect back to this under a defined port.
+        let (_, server_address) = join(
+            poke_server,
+            listen_answer::invoke(stack, expected_answer, cancel_poke_send)
+        ).await;
+
+        // Found connection, light up!
+        control.gpio_set(0, true).await;
+
+        server_contact::invoke(stack, server_address, mac_address).await;
     }
 }
