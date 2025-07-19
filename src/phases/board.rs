@@ -10,7 +10,6 @@ use embassy_rp::{
     pio::{ self, Pio },
     usb::{ self, Driver },
     Peri,
-    Peripherals,
 };
 use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel };
 use embassy_usb::class::cdc_acm::{ CdcAcmClass, State };
@@ -91,17 +90,18 @@ pub fn serial_log(msg: &str) {
 
 pub async fn initialize(
     spawner: Spawner,
-    peripherals: Peripherals
+    pins: (
+        Peri<'static, PIN_23>,
+        Peri<'static, PIN_24>,
+        Peri<'static, PIN_25>,
+        Peri<'static, PIN_29>,
+        Peri<'static, PIO0>,
+        Peri<'static, DMA_CH0>,
+    ),
+    usb: Peri<'static, USB>
 ) -> (Control<'static>, Device<'static>) {
-    init_usb(spawner, peripherals.USB).await;
-    init_wifi(spawner, (
-        peripherals.PIN_23,
-        peripherals.PIN_24,
-        peripherals.PIN_25,
-        peripherals.PIN_29,
-        peripherals.PIO0,
-        peripherals.DMA_CH0,
-    )).await
+    init_usb(spawner, usb).await;
+    init_wifi(spawner, pins).await
 }
 
 async fn init_usb(spawner: Spawner, usb_port: Peri<'static, USB>) {

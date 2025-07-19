@@ -12,7 +12,7 @@ use embassy_futures::{ join::join, select::select };
 use embassy_rp::clocks::RoscRng;
 use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel };
 use crate::{
-    consts::{CHALLENGE_LENGTH, SECRET_HASH_KEY},
+    consts::{ CHALLENGE_LENGTH, SECRET_HASH_KEY },
     phases::{ board, connect_wifi, listen_answer, poke_server, server_contact, setup_stack },
 };
 
@@ -28,7 +28,18 @@ async fn main(spawner: Spawner) {
     let peripherals = embassy_rp::init(Default::default());
 
     // Initialize the board.
-    let (mut control, net_device) = board::initialize(spawner, peripherals).await;
+    let (mut control, net_device) = board::initialize(
+        spawner,
+        (
+            peripherals.PIN_23,
+            peripherals.PIN_24,
+            peripherals.PIN_25,
+            peripherals.PIN_29,
+            peripherals.PIO0,
+            peripherals.DMA_CH0,
+        ),
+        peripherals.USB
+    ).await;
 
     // Initialize the Wifi stack.
     let stack = setup_stack::invoke(spawner, net_device).await;
