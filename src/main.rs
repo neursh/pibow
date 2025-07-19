@@ -5,6 +5,8 @@
 mod consts;
 mod phases;
 
+use core::panic::PanicInfo;
+
 use embassy_executor::Spawner;
 use embassy_futures::{ join::join, select::select };
 use embassy_rp::clocks::RoscRng;
@@ -14,7 +16,12 @@ use crate::{
     phases::{ connect_wifi, board, listen_answer, poke_server, setup_wifi },
 };
 
-use ::{ defmt_rtt as _, panic_probe as _ };
+use ::{ defmt_rtt as _ };
+
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    cortex_m::peripheral::SCB::sys_reset();
+}
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
