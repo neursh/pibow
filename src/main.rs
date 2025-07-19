@@ -13,7 +13,7 @@ use embassy_rp::clocks::RoscRng;
 use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel };
 use crate::{
     consts::SECRET_HASH_KEY,
-    phases::{ board, connect_wifi, listen_answer, poke_server, server_contact, setup_wifi },
+    phases::{ board, connect_wifi, listen_answer, poke_server, server_contact, setup_stack },
 };
 
 use ::{ defmt_rtt as _ };
@@ -31,7 +31,7 @@ async fn main(spawner: Spawner) {
     let (mut control, net_device) = board::initialize(spawner, peripherals).await;
 
     // Initialize the Wifi stack.
-    let stack = setup_wifi::invoke(spawner, net_device).await;
+    let stack = setup_stack::invoke(spawner, net_device).await;
 
     // Conenct to the Wifi.
     connect_wifi::invoke(&mut control, &stack).await;
