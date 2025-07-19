@@ -15,7 +15,7 @@ pub async fn invoke(
     let mut tx_buffer = [0_u8; STACK_BUFFER_SIZE];
 
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-    socket.set_timeout(Some(Duration::from_secs(10)));
+    socket.set_timeout(Some(Duration::from_secs(2)));
 
     board::serial_log("TCP Initialized");
 
