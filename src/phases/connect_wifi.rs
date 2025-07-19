@@ -1,9 +1,8 @@
 use cyw43::{ Control, JoinOptions };
-use defmt::*;
 use embassy_net::Stack;
 use embassy_time::Timer;
 
-use crate::consts::*;
+use crate::{ consts::*, phases::board };
 
 pub async fn invoke(control: &mut Control<'static>, stack: &Stack<'static>) {
     // Connect to Wifi.
@@ -12,17 +11,17 @@ pub async fn invoke(control: &mut Control<'static>, stack: &Stack<'static>) {
             Ok(_) => {
                 break;
             }
-            Err(err) => {
-                info!("join failed with status={}", err.status);
+            Err(_) => {
+                board::serial_log("Can't join the Wifi network");
             }
         }
     }
 
     // Wait for DHCP, not necessary when using static IP.
-    info!("waiting for DHCP...");
+    board::serial_log("Waiting for DHCP...");
     while !stack.is_config_up() {
         Timer::after_millis(100).await;
     }
-    info!("DHCP is now up!");
+    board::serial_log("DHCP is now up!");
     // And now we can use the wifi!
 }
