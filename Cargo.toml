@@ -40,4 +40,8 @@ blake3 = { version = "1.8.2", default-features = false }
 
 [profile.release]
 # Enable generation of debug symbols even on release builds
-debug = true
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
