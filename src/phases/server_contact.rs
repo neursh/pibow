@@ -3,7 +3,10 @@ use embassy_net::{ tcp::TcpSocket, IpAddress, IpEndpoint, Stack };
 use embassy_rp::clocks::RoscRng;
 use embedded_io_async::{ Read, Write };
 
-use crate::{ consts::{ SECRET_HASH_KEY, SERVER_PORT, STACK_BUFFER_SIZE }, phases::board };
+use crate::{
+    consts::{ FAULT_TOLERANCE, SECRET_HASH_KEY, SERVER_PORT, STACK_BUFFER_SIZE },
+    phases::board,
+};
 
 pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_address: [u8; 6]) {
     let mut rx_buffer = [0_u8; STACK_BUFFER_SIZE];
@@ -58,12 +61,23 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
     // If nothing goes wrong, start taking requests from server!
     let mut current_challenge = [0_u8; 128];
     let mut expected_answer: Option<Hash> = None;
+
+    // Counter on how many faults from the server.
+    let mut faults: usize = 0;
+
     loop {
-        let mut action = [0_u8; 1];
-        if let Err(_) = socket.read_exact(&mut action).await {
-            board::serial_log("Can't obtain action from server, folding...");
+        // Check faults.
+        if faults > FAULT_TOLERANCE {
             break;
         }
+
+        // Get action input.
+        let mut action = [0_u8; 1];
+        if let Err(_) = socket.read_exact(&mut action).await {
+            board::serial_log("Can't obtain action from server, breaking...");
+            break;
+        }
+
         // Server asks for challenge.
         if action[0] == 255 {
             for index in 0..128 {
@@ -72,18 +86,20 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
             expected_answer = Some(blake3::keyed_hash(SECRET_HASH_KEY, &current_challenge));
 
             if let Err(_) = socket.write_all(&current_challenge).await {
-                board::serial_log("Can't send the challenge to server, folding...");
+                board::serial_log("Can't send the challenge to server, breaking...");
                 break;
             }
 
             continue;
-            // Server asks for something.
-            // Only when the challenge is given, server can take action to the board, but with the answer attached.
-        } else if expected_answer.is_some() {
+        }
+
+        // Server asks for something.
+        // Only when the challenge is given, server can take action to the board, but with the answer attached.
+        if expected_answer.is_some() {
             // Get hash answer.
             let mut answer = [0_u8; 32];
             if let Err(_) = socket.read_exact(&mut answer).await {
-                board::serial_log("Can't obtain answer from server, folding...");
+                board::serial_log("Can't obtain answer from server, breaking...");
                 break;
             }
             let hash_answer = Hash::from_bytes(answer);
@@ -91,9 +107,8 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
             // Compare hashes.
             if expected_answer.unwrap() != hash_answer {
                 board::serial_log("Server failed the challenge, folding...");
-                break;
+                faults += 1;
             }
-
             // Clear challenge's answer when done.
             expected_answer = None;
 
@@ -103,7 +118,7 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
         }
 
         board::serial_log("Server didn't ask for a challenge, folding...");
-        break;
+        faults += 1;
     }
 
     let _ = socket.flush().await;
