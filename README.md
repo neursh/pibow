@@ -28,15 +28,22 @@ So before building, clone embassy and place it at the project's parent folder (s
 
 ### II. Discover the server
 
-- `[UDP]` Send a discover message on the multicast channel, resend after 2 seconds when getting no response, with the first 2 bytes is the message type, and the rest 128 bytes is a random challenge that changes when the node goes in discover mode: `[69, 0, ...]`.
-- `[TCP]` Upon receiving a server response message with the correct answer (`[69, 1, ...]`), stop spamming the heck out of the multicast, otherwise just disconnect this connection.
-- `[TCP]` Send a confirmation message over to server with the Pi's unique ID: `[69, 2, ...<4 bytes>]`.
+- `[UDP]` Send a discover message on the multicast channel, resend after 2 seconds when getting no response, 64 bytes is a random challenge that changes when the node goes in discover mode.
+- `[TCP]` Upon receiving a server response message with the correct answer, stop spamming the heck out of the multicast, otherwise just disconnect this connection.
+- `[TCP]` Connect back to the server, wait for a challenge, send back answer with MAC address.
 
 ### III. Taking server's requests
 
-- `[TCP]` The server must ask for a hash challenge (`[72, 65]`) before taking any actions, the actions will be dropped if the server didn't ask for the hash challenge.
-- `[TCP]` Send over the hash challenge: `[...]`.
-- `[TCP]` Receive action flag with the answer: `[<action>, ...<answer>]`.
+The node has 3 actions, that will send over to server in one byte:
+
+- `[0]`: The machine is OFF.
+- `[1]`: The machine is ON.
+- `[2]`: Challenge.
+
+- `[TCP]` From this point, the node automatically send a challenge, 64 bytes, with a pad action at the start, for a total of 65 bytes.
+- `[TCP]` Send over the hash challenge: `[2, ...]`.
+- `[TCP]` While waiting for any action, listen for the machine's state, and report back to the server `[0]` OFF or `[1]` ON. If first connected, send it after challenge sent (by design).
+- `[TCP]` Receive action flag with the answer: `[<action>, <answer>]`.
 - From there, do whatever the server wants. If disconnected, the node will go back to section `II` and start all over again.
 
 ## Server
@@ -51,13 +58,14 @@ So before building, clone embassy and place it at the project's parent folder (s
 ### II. Response to node's discovery message
 
 - `[UDP]` Upon receiving a discover message from a node on the multicast channel, solve the challenge.
-- `[TCP]` Connect to the TCP port on node's IP address, send back the awnswer with server response flag: `[69, 1, ...]`.
-- `[TCP]` Client will either reject and disconnect the connection. Or send back a confirmation message, the connection will stay connected from here.
-- Fetch the ID sent by the node, save it to let administrator name the node for easier access, also keeping a query to know which socket to send the turn on action to, keep the ID unless deleted by the admin, since the ID cannot be changed on the node.
+- `[TCP]` Connect to the TCP port on node's IP address, send back the awnswer.
+- `[TCP]` CLient will disconnect no matter what.
+- `[TCP]` If the answer is correct, the node will connect back to the server, send a challenge to it.
 
 ### III. Request actions
 
-- `[TCP]` On action given by users, ask for a hash challenge on the selected node (`[72, 65]`).
-- `[TCP]` Receive the hash challenge and solve it.
-- `[TCP]` Send the action with the answer: `[<action>, ...<answer>]`.
-- Try to maintain the connection, the multcast listener will always running so the server will always have the chance to reconnect with the node.
+- `[TCP]` The node will send back its MAC address and the answer, if the answer is wrong, disconnect it.
+- `[TCP]` Store the challenge sent by the node for later use when an action is invoked.
+- `[TCP]` Also receive reports from the node for machine's state.
+- Fetch the MAC address sent by the node, save it to let administrator name the node for easier access, also keeping a query to know which socket to send the turn on action to, unless the MAC address deleted by the admin, since the MAC address cannot be changed on the node.
+- Try to maintain the connection, the multcast listener will be started if disconnected so the server will always have the chance to reconnect with the node.
