@@ -24,9 +24,13 @@ def main():
 
     # Compile
     os.system("cargo build --release")
+    try:
+        os.mkdir("bin")
+    except:  # noqa: E722
+        pass
     os.chdir("target/thumbv6m-none-eabi/release")
-    os.system("elf2uf2-rs pibow-node pibow-node.uf2")
-    os.system("del pibow-node")
+    os.system("elf2uf2-rs pibow-node ../../../bin/pibow-node.uf2")
+    os.remove("pibow-node")
     os.chdir("../../../")
 
     # Revert changes.
