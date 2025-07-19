@@ -12,7 +12,7 @@ use embassy_futures::{ join::join, select::select };
 use embassy_rp::clocks::RoscRng;
 use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel };
 use crate::{
-    consts::SECRET_HASH_KEY,
+    consts::{CHALLENGE_LENGTH, SECRET_HASH_KEY},
     phases::{ board, connect_wifi, listen_answer, poke_server, server_contact, setup_stack },
 };
 
@@ -45,8 +45,8 @@ async fn main(spawner: Spawner) {
         let cancel_poke_send = cancel_poke.sender();
 
         // Create a hash challenge and cast it to the UDP channel.
-        let mut challenge = [0_u8; 128];
-        for index in 0..128 {
+        let mut challenge = [0_u8; CHALLENGE_LENGTH];
+        for index in 0..CHALLENGE_LENGTH {
             challenge[index] = RoscRng::next_u8();
         }
         let expected_answer = blake3::keyed_hash(SECRET_HASH_KEY, &challenge);

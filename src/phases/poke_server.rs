@@ -4,11 +4,11 @@ use embassy_net::{ udp::{ PacketMetadata, UdpSocket }, Stack };
 use embassy_time::Timer;
 
 use crate::{
-    consts::{ MULTICAST_IP, MULTICAST_PORT, NODE_PORT, STACK_BUFFER_SIZE },
+    consts::{ CHALLENGE_LENGTH, MULTICAST_IP, MULTICAST_PORT, NODE_PORT, STACK_BUFFER_SIZE },
     phases::board,
 };
 
-pub async fn invoke(stack: Stack<'static>, challenge: &[u8; 128]) {
+pub async fn invoke(stack: Stack<'static>, challenge: &[u8; CHALLENGE_LENGTH]) {
     let mut rx_meta = [PacketMetadata::EMPTY; 8];
     let mut rx_buffer = [0; STACK_BUFFER_SIZE];
     let mut tx_meta = [PacketMetadata::EMPTY; 8];

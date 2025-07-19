@@ -4,7 +4,7 @@ use embassy_rp::clocks::RoscRng;
 use embedded_io_async::{ Read, Write };
 
 use crate::{
-    consts::{ FAULT_TOLERANCE, SECRET_HASH_KEY, SERVER_PORT, STACK_BUFFER_SIZE },
+    consts::{ CHALLENGE_LENGTH, FAULT_TOLERANCE, SECRET_HASH_KEY, SERVER_PORT, STACK_BUFFER_SIZE },
     phases::board,
 };
 
@@ -34,7 +34,7 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
         }
 
         // Read the challenge.
-        let mut challenge = [0_u8; 128];
+        let mut challenge = [0_u8; CHALLENGE_LENGTH];
         if let Err(_) = socket.read_exact(&mut challenge).await {
             board::serial_log("Can't obtain the challenge from server.");
             let _ = socket.flush().await;
@@ -59,7 +59,7 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
     }
 
     // If nothing goes wrong, start taking requests from server!
-    let mut current_challenge = [0_u8; 128];
+    let mut current_challenge = [0_u8; CHALLENGE_LENGTH];
     let mut expected_answer: Option<Hash> = None;
     let mut action = [0_u8; 1];
 
@@ -80,7 +80,7 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
 
         // Server asks for challenge.
         if action[0] == 255 {
-            for index in 0..128 {
+            for index in 0..CHALLENGE_LENGTH {
                 current_challenge[index] = RoscRng::next_u8();
             }
             expected_answer = Some(blake3::keyed_hash(SECRET_HASH_KEY, &current_challenge));
@@ -97,7 +97,7 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
         // Only when the challenge is given, server can take action to the board, but with the answer attached.
         if expected_answer.is_some() {
             // Get hash answer.
-            let mut answer = [0_u8; 32];
+            let mut answer = [0_u8; CHALLENGE_LENGTH];
             if let Err(_) = socket.read_exact(&mut answer).await {
                 board::serial_log("Can't obtain answer from server, breaking...");
                 break;
@@ -113,6 +113,8 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
             expected_answer = None;
 
             // Take action given from the server.
+            // The only action here is multiply the number with 100.
+            // Then we'll use it as the duration for how long we want to short the power button.
 
             continue;
         }

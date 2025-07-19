@@ -4,6 +4,8 @@ pub const WIFI_NETWORK: &str = "ssid";
 pub const WIFI_PASSWORD: &str = "password";
 pub const SECRET_HASH_KEY: &[u8; 32] = &[0_u8; 32];
 
+pub const CHALLENGE_LENGTH: usize = 32;
+
 // The server poke destination.
 pub const MULTICAST_IP: u32 = 3758096511; // 224.0.0.127
 pub const MULTICAST_PORT: u16 = 4265;
