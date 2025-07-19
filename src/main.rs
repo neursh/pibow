@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 
 use embassy_executor::Spawner;
 use embassy_futures::{ join::join, select::select };
-use embassy_rp::clocks::RoscRng;
+use embassy_rp::{ clocks::RoscRng, gpio::{ Input, Level, Output, Pull } };
 use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel };
 use crate::{
     consts::{ CHALLENGE_LENGTH, SECRET_HASH_KEY },
@@ -49,6 +49,10 @@ async fn main(spawner: Spawner) {
 
     let mac_address = control.address().await;
 
+    let mut power_switch = Output::new(peripherals.PIN_14, Level::Low);
+    let mut reset_switch = Output::new(peripherals.PIN_15, Level::Low);
+    let mut machine_state = Input::new(peripherals.PIN_16, Pull::Down);
+
     loop {
         // Add a cancel poke channel.
         let cancel_poke: Channel<CriticalSectionRawMutex, bool, 1> = Channel::new();
@@ -79,6 +83,13 @@ async fn main(spawner: Spawner) {
         // Found connection, light up!
         control.gpio_set(0, true).await;
 
-        server_contact::invoke(stack, server_address, mac_address).await;
+        server_contact::invoke(
+            stack,
+            server_address,
+            mac_address,
+            &mut power_switch,
+            &mut reset_switch,
+            &mut machine_state
+        ).await;
     }
 }
