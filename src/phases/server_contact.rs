@@ -4,7 +4,14 @@ use embassy_rp::clocks::RoscRng;
 use embedded_io_async::{ Read, Write };
 
 use crate::{
-    consts::{ CHALLENGE_LENGTH, FAULT_TOLERANCE, SECRET_HASH_KEY, SERVER_PORT, STACK_BUFFER_SIZE },
+    consts::{
+        CHALLENGE_LENGTH,
+        FAULT_TOLERANCE,
+        ANSWER_LENGTH,
+        SECRET_HASH_KEY,
+        SERVER_PORT,
+        STACK_BUFFER_SIZE,
+    },
     phases::board,
 };
 
@@ -24,15 +31,6 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
 
     // Enclose this whole initial communication, don't wanna waste memory keeping this for no reason.
     {
-        // Request a challenge.
-        if let Err(_) = socket.write_all(&[255]).await {
-            board::serial_log("Can't request a challenge to server.");
-            let _ = socket.flush().await;
-            socket.abort();
-            socket.close();
-            return;
-        }
-
         // Read the challenge.
         let mut challenge = [0_u8; CHALLENGE_LENGTH];
         if let Err(_) = socket.read_exact(&mut challenge).await {
@@ -60,8 +58,8 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
 
     // If nothing goes wrong, start taking requests from server!
     let mut current_challenge = [0_u8; CHALLENGE_LENGTH];
-    let mut expected_answer: Option<Hash> = None;
-    let mut action = [0_u8; 1];
+    let mut expected_answer: Hash;
+    let mut action_with_answer = [0_u8; ANSWER_LENGTH + 1];
 
     // Counter on how many faults from the server.
     let mut faults: usize = 0;
@@ -72,55 +70,35 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
             break;
         }
 
-        // Get action input.
-        if let Err(_) = socket.read_exact(&mut action).await {
-            board::serial_log("Can't obtain action from server, breaking...");
+        // Prepare the challenge.
+        for index in 0..CHALLENGE_LENGTH {
+            current_challenge[index] = RoscRng::next_u8();
+        }
+        expected_answer = blake3::keyed_hash(SECRET_HASH_KEY, &current_challenge);
+        // Send challenge.
+        if let Err(_) = socket.write_all(&current_challenge).await {
+            board::serial_log("Can't send the challenge to server, breaking...");
             break;
         }
 
-        // Server asks for challenge.
-        if action[0] == 255 {
-            for index in 0..CHALLENGE_LENGTH {
-                current_challenge[index] = RoscRng::next_u8();
-            }
-            expected_answer = Some(blake3::keyed_hash(SECRET_HASH_KEY, &current_challenge));
+        // Wait for action input & answer.
+        if let Err(_) = socket.read_exact(&mut action_with_answer).await {
+            board::serial_log("Can't obtain action & answer from server, breaking...");
+            break;
+        }
 
-            if let Err(_) = socket.write_all(&current_challenge).await {
-                board::serial_log("Can't send the challenge to server, breaking...");
-                break;
-            }
+        let hash_answer = Hash::from_bytes(
+            action_with_answer[1..ANSWER_LENGTH + 1].try_into().unwrap()
+        );
 
+        // Compare hashes.
+        if expected_answer != hash_answer {
+            board::serial_log("Server failed the challenge, folding...");
+            faults += 1;
             continue;
         }
 
-        // Server asks for something.
-        // Only when the challenge is given, server can take action to the board, but with the answer attached.
-        if expected_answer.is_some() {
-            // Get hash answer.
-            let mut answer = [0_u8; CHALLENGE_LENGTH];
-            if let Err(_) = socket.read_exact(&mut answer).await {
-                board::serial_log("Can't obtain answer from server, breaking...");
-                break;
-            }
-            let hash_answer = Hash::from_bytes(answer);
-
-            // Compare hashes.
-            if expected_answer.unwrap() != hash_answer {
-                board::serial_log("Server failed the challenge, folding...");
-                faults += 1;
-            }
-            // Clear challenge's answer when done.
-            expected_answer = None;
-
-            // Take action given from the server.
-            // The only action here is multiply the number with 100.
-            // Then we'll use it as the duration for how long we want to short the power button.
-
-            continue;
-        }
-
-        board::serial_log("Server didn't ask for a challenge, folding...");
-        faults += 1;
+        let action = action_with_answer[0];
     }
 
     let _ = socket.flush().await;
