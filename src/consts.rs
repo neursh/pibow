@@ -4,7 +4,7 @@ pub const WIFI_NETWORK: &str = "ssid";
 pub const WIFI_PASSWORD: &str = "password";
 pub const SECRET_HASH_KEY: &[u8; 32] = &[0_u8; 32];
 
-pub const CHALLENGE_LENGTH: usize = 32;
+pub const CHALLENGE_LENGTH: usize = 64;
 pub const ANSWER_LENGTH: usize = 32;
 
 // The server poke destination.
@@ -18,7 +18,7 @@ pub const NODE_PORT: u16 = 5325;
 pub const SERVER_PORT: u16 = 7325;
 
 // Fault tolerance from server before disconnecting for good.
-pub const FAULT_TOLERANCE: usize = 10;
+pub const FAULT_TOLERANCE: usize = 5;
 
 // The buffer for socket, not the receiving buffer for messages.
 // All actions in here needs at most 150 bytes. Chose 512 for safety, that's all.
