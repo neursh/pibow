@@ -34,11 +34,12 @@ So before building, clone embassy and place it at the project's parent folder (s
 
 ### III. Taking server's requests
 
+```
 The node has 3 actions, that will send over to server in one byte:
-
-- `[0]`: The machine is OFF.
-- `[1]`: The machine is ON.
-- `[2]`: Challenge.
+[0]: The machine is OFF.
+[1]: The machine is ON.
+[2]: Challenge.
+```
 
 - `[TCP]` From this point, the node automatically send a challenge, 64 bytes, with a pad action at the start, for a total of 65 bytes.
 - `[TCP]` Send over the hash challenge: `[2, ...]`.
