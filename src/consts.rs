@@ -1,4 +1,5 @@
-// Must be unique
+// Secret hash key must be shared with the server.
+// Use build.py script to generate and obtain a random key.
 pub const WIFI_NETWORK: &str = "ssid";
 pub const WIFI_PASSWORD: &str = "password";
 pub const SECRET_HASH_KEY: &[u8; 32] = &[0_u8; 32];

@@ -25,6 +25,7 @@ with open("src/consts.rs", "w") as writer:
 os.system("cargo build --release")
 os.chdir("target/thumbv6m-none-eabi/release")
 os.system("elf2uf2-rs pibow-node pibow-node.uf2")
+os.system("del pibow-node")
 os.chdir("../../../")
 
 # Revert changes.
