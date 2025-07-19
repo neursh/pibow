@@ -61,6 +61,7 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
     // If nothing goes wrong, start taking requests from server!
     let mut current_challenge = [0_u8; 128];
     let mut expected_answer: Option<Hash> = None;
+    let mut action = [0_u8; 1];
 
     // Counter on how many faults from the server.
     let mut faults: usize = 0;
@@ -72,7 +73,6 @@ pub async fn invoke(stack: Stack<'static>, server_address: IpAddress, mac_addres
         }
 
         // Get action input.
-        let mut action = [0_u8; 1];
         if let Err(_) = socket.read_exact(&mut action).await {
             board::serial_log("Can't obtain action from server, breaking...");
             break;
