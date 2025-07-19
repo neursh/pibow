@@ -4,7 +4,7 @@ use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Sende
 use embassy_time::Duration;
 use embedded_io_async::Read;
 
-use crate::{ consts::{ CHALLENGE_LENGTH, NODE_PORT, STACK_BUFFER_SIZE }, phases::board };
+use crate::{ consts::{ ANSWER_LENGTH, NODE_PORT, STACK_BUFFER_SIZE }, phases::board };
 
 pub async fn invoke(
     stack: Stack<'static>,
@@ -24,7 +24,7 @@ pub async fn invoke(
             continue;
         }
 
-        let mut challenge_answer = [0_u8; CHALLENGE_LENGTH];
+        let mut challenge_answer = [0_u8; ANSWER_LENGTH];
 
         if let Err(_) = socket.read_exact(&mut challenge_answer).await {
             let _ = socket.flush().await;
