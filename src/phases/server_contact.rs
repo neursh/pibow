@@ -2,6 +2,7 @@ use blake3::Hash;
 use embassy_futures::select::{ select, Either };
 use embassy_net::{ tcp::{ self, TcpSocket }, IpAddress, IpEndpoint, Stack };
 use embassy_rp::{ clocks::RoscRng, gpio::{ Input, Level, Output } };
+use embassy_time::Timer;
 use embedded_io_async::{ Read, ReadExactError, Write };
 
 use crate::{
@@ -97,7 +98,9 @@ pub async fn invoke(
             break;
         }
 
-        // In this case, the first task will most likely be finished first.
+        // The longest waiting task that we can attach to is wait for action & answer from server.
+        // So in the mean time, we can use this wait time to send report of the machine's state to server.
+        // Since we can't move mutable across states without unsafe, this is the best way that I could think of.
         let bad_cases: Either<
             Result<(), ReadExactError<tcp::Error>>,
             Result<(), tcp::Error>
@@ -126,20 +129,15 @@ pub async fn invoke(
                     reported_state = Some(current_state);
 
                     // Check and send the new state.
+                    let write_state: u8;
                     if current_state == Level::High {
-                        if let Err(bad) = writer.write(&[1]).await {
-                            board::serial_log(
-                                "Can't obtain action & answer from server, breaking..."
-                            );
-                            return Err(bad);
-                        }
+                        write_state = 1;
                     } else {
-                        if let Err(bad) = writer.write(&[0]).await {
-                            board::serial_log(
-                                "Can't obtain action & answer from server, breaking..."
-                            );
-                            return Err(bad);
-                        }
+                        write_state = 0;
+                    }
+                    if let Err(bad) = writer.write(&[write_state]).await {
+                        board::serial_log("Can't obtain action & answer from server, breaking...");
+                        return Err(bad);
                     }
                 }
             })()
@@ -165,7 +163,50 @@ pub async fn invoke(
             continue;
         }
 
+        // Get action.
         let action = action_with_answer[0];
+
+        // Execute the action.
+        // Power on.
+        if action == 1 {
+            if machine_state.get_level() == Level::Low {
+                power_switch.set_high();
+                Timer::after_millis(500).await;
+                power_switch.set_low();
+            }
+            // No don't press it when it's already on.
+            if machine_state.get_level() == Level::High {
+                // Send back already on state.
+                if let Err(_) = writer.write(&[1]).await {
+                    board::serial_log("Can't obtain action & answer from server, breaking...");
+                    break;
+                }
+            }
+            continue;
+        }
+        // Power off.
+        if action == 2 {
+            if machine_state.get_level() == Level::High {
+                power_switch.set_high();
+                Timer::after_millis(500).await;
+                power_switch.set_low();
+            }
+            // No don't press it when it's already off.
+            if machine_state.get_level() == Level::Low {
+                // Send back already on state.
+                if let Err(_) = writer.write(&[1]).await {
+                    board::serial_log("Can't obtain action & answer from server, breaking...");
+                    break;
+                }
+            }
+            continue;
+        }
+        // Reset
+        if action == 3 {
+            reset_switch.set_high();
+            Timer::after_millis(500).await;
+            reset_switch.set_low();
+        }
     }
 
     let _ = socket.flush().await;
