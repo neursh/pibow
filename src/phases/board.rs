@@ -16,9 +16,6 @@ use embassy_usb::class::cdc_acm::{ CdcAcmClass, State };
 use embassy_usb::{ Builder, Config };
 use static_cell::StaticCell;
 
-// Channel for sending messages to serial logger
-static SERIAL_CHANNEL: Channel<CriticalSectionRawMutex, heapless::String<256>, 8> = Channel::new();
-
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
     USBCTRL_IRQ => usb::InterruptHandler<USB>;
@@ -35,6 +32,9 @@ async fn cyw43_task(
 async fn usb_task(mut usb: embassy_usb::UsbDevice<'static, Driver<'static, USB>>) -> ! {
     usb.run().await
 }
+
+// Channel for sending messages to serial logger
+static SERIAL_CHANNEL: Channel<CriticalSectionRawMutex, heapless::String<256>, 8> = Channel::new();
 
 #[embassy_executor::task]
 async fn serial_logger_task(mut class: CdcAcmClass<'static, Driver<'static, USB>>) {
