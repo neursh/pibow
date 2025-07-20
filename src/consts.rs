@@ -1,3 +1,5 @@
+use embassy_rp::gpio::Level;
+
 // Secret hash key must be shared with the server.
 // Use build.py script to generate and obtain a random key.
 pub const WIFI_NETWORK: &str = "ssid";
@@ -23,3 +25,7 @@ pub const FAULT_TOLERANCE: usize = 5;
 // The buffer for socket, not the receiving buffer for messages.
 // All actions in here needs at most 150 bytes. Chose 512 for safety, that's all.
 pub const STACK_BUFFER_SIZE: usize = 512;
+
+// Adjust this based on how your relay module works.
+pub const ACTIVATE_RELAY: Level = Level::Low;
+pub const DEACTIVATE_RELAY: Level = Level::High;
