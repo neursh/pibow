@@ -1,16 +1,11 @@
 use blake3::Hash;
 use embassy_net::{ tcp::TcpSocket, IpAddress, Stack };
-use embassy_sync::{ blocking_mutex::raw::CriticalSectionRawMutex, channel::Sender };
 use embassy_time::Duration;
 use embedded_io_async::Read;
 
 use crate::{ consts::{ ANSWER_LENGTH, NODE_PORT, STACK_BUFFER_SIZE }, phases::board };
 
-pub async fn invoke(
-    stack: Stack<'static>,
-    expected_answer: Hash,
-    cancel_poke_send: Sender<'_, CriticalSectionRawMutex, bool, 1>
-) -> IpAddress {
+pub async fn invoke(stack: Stack<'static>, expected_answer: Hash) -> IpAddress {
     let mut rx_buffer = [0_u8; STACK_BUFFER_SIZE];
     let mut tx_buffer = [0_u8; STACK_BUFFER_SIZE];
 
@@ -48,8 +43,6 @@ pub async fn invoke(
         let _ = socket.flush().await;
         socket.abort();
         socket.close();
-
-        cancel_poke_send.send(true).await;
 
         return remote_endpoint.addr;
     }
