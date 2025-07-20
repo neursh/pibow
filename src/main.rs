@@ -9,9 +9,9 @@ use core::panic::PanicInfo;
 
 use embassy_executor::Spawner;
 use embassy_futures::select::{ select, Either };
-use embassy_rp::{ clocks::RoscRng, gpio::{ Input, Level, Output, Pull } };
+use embassy_rp::{ clocks::RoscRng, gpio::{ Input, Output, Pull } };
 use crate::{
-    consts::{ CHALLENGE_LENGTH, SECRET_HASH_KEY },
+    consts::{ CHALLENGE_LENGTH, DEACTIVATE_RELAY, SECRET_HASH_KEY },
     phases::{ board, connect_wifi, listen_answer, poke_server, server_contact, setup_stack },
 };
 
@@ -48,8 +48,8 @@ async fn main(spawner: Spawner) {
 
     let mac_address = control.address().await;
 
-    let mut power_switch = Output::new(peripherals.PIN_14, Level::Low);
-    let mut reset_switch = Output::new(peripherals.PIN_15, Level::Low);
+    let mut power_switch = Output::new(peripherals.PIN_14, DEACTIVATE_RELAY);
+    let mut reset_switch = Output::new(peripherals.PIN_15, DEACTIVATE_RELAY);
     let mut machine_state = Input::new(peripherals.PIN_16, Pull::Down);
 
     loop {

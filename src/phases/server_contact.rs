@@ -7,9 +7,11 @@ use embedded_io_async::{ Read, ReadExactError, Write };
 
 use crate::{
     consts::{
-        CHALLENGE_LENGTH,
-        FAULT_TOLERANCE,
+        ACTIVATE_RELAY,
         ANSWER_LENGTH,
+        CHALLENGE_LENGTH,
+        DEACTIVATE_RELAY,
+        FAULT_TOLERANCE,
         SECRET_HASH_KEY,
         SERVER_PORT,
         STACK_BUFFER_SIZE,
@@ -170,9 +172,9 @@ pub async fn invoke(
         // Power on.
         if action == 1 {
             if machine_state.get_level() == Level::Low {
-                power_switch.set_high();
+                power_switch.set_level(ACTIVATE_RELAY);
                 Timer::after_millis(500).await;
-                power_switch.set_low();
+                power_switch.set_level(DEACTIVATE_RELAY);
             }
             // No don't press it when it's already on.
             if machine_state.get_level() == Level::High {
@@ -187,9 +189,9 @@ pub async fn invoke(
         // Power off.
         if action == 2 {
             if machine_state.get_level() == Level::High {
-                power_switch.set_high();
+                power_switch.set_level(ACTIVATE_RELAY);
                 Timer::after_millis(500).await;
-                power_switch.set_low();
+                power_switch.set_level(DEACTIVATE_RELAY);
             }
             // No don't press it when it's already off.
             if machine_state.get_level() == Level::Low {
@@ -203,12 +205,14 @@ pub async fn invoke(
         }
         // Reset
         if action == 3 {
-            reset_switch.set_high();
-            Timer::after_millis(500).await;
             reset_switch.set_low();
+            Timer::after_millis(500).await;
+            reset_switch.set_high();
         }
     }
 
+    power_switch.set_high();
+    reset_switch.set_high();
     let _ = socket.flush().await;
     socket.abort();
     socket.close();
