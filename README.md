@@ -4,12 +4,6 @@ Reliably turn a computer on over local network using Raspberry Pi.
 
 To archive this, a Raspberry Pi Pico W will be installed for each physical computer at the power pins, acting as a power button, but remotely activated via WiFi.
 
-The main server will use a Pi 3/4/5, or anything with an kernel and an operating system installed to handle requests and asking Picos to jumpstart the computer.
-
-This ensures flexibility for the main server, like install a proxy service to receive requests from outside the local network.
-
-The node follows a simple rule: "Nothing is trusted". The server must request a new one-time hash challenge, and include the answer on the next message. If the attempt succeeded, the node will send a success flag.
-
 ```
 I can't get embassy to work from the online crate, so I cloned the whole thing to my workspace.
 So before building, clone embassy and place it at the project's parent folder (same level as this readme)
@@ -17,20 +11,29 @@ So before building, clone embassy and place it at the project's parent folder (s
 
 # Communication
 
+This implmentation is intended for long-term connection between a server and the Pico W (I'll call this a node).
+
+To build the project, run `build.py`:
+```
+python3 build.py <ssid> <password>
+```
+This will replace some variables in `src/consts.rs` to match with the Wifi network provided. It will also generate a random secret key for security.
+
+This random secret key will bed used for creating hash challenge using blake3, on both server and node to verify connection and authenticity of both ends.
+
 ## Pico W (node)
 
-### I. Prerequisites
+When started, Pico W will open 2 ports, one for UDP endpoint, one for TCP server, and after that, it will turn into a TCP client:
 
-- On binary build, the administrator must provide full Wifi details to connect to and a secret hash key, this key must be shared with the server.
-- When started, Pico W will open 2 ports, one for TCP server, one for UDP endpoint:
-  - TCP: Let the server contact and request a jumpstart + send back success message reliably.
-  - UDP: Multicast available signal to the network to let the server discover online nodes.
+- UDP: Multicast a hash challenge to the network to let the server discover the node.
+- TCP Server: Let the server contact to the node to send messages reliably.
+- TCP Client: Connect back to the server to receive requests.
 
-### II. Discover the server
+### II. Let server knows the node
 
-- `[UDP]` Send a discover message on the multicast channel, resend after 2 seconds when getting no response, 64 bytes is a random challenge that changes when the node goes in discover mode.
-- `[TCP]` Upon receiving a server response message with the correct answer, stop spamming the heck out of the multicast, otherwise just disconnect this connection.
-- `[TCP]` Connect back to the server, wait for a challenge, send back answer with MAC address.
+- `[UDP]` Send a 64 bytes hash challenge on the multicast channel, resend after 2 seconds when getting no response, the challenge changes when the node goes into this mode > Ex: New hash challenge when server disconnects.
+- `[TCP]` Server connects to the node. Upon receiving the correct answer, stop spamming the heck out of the multicast, otherwise just disconnect, server got 2 seconds to send the answer.
+- `[TCP]` Connect back to the server, wait for a challenge, send back the answer with MAC address to let the server knows which node is which.
 
 ### III. Taking server's requests
 
@@ -41,8 +44,7 @@ The node has 3 actions, that will send over to server in one byte:
 [2]: Challenge.
 ```
 
-- `[TCP]` From this point, the node automatically send a challenge, 64 bytes, with a pad action at the start, for a total of 65 bytes.
-- `[TCP]` Send over the hash challenge: `[2, ...]`.
+- `[TCP]` From this point, the node automatically send a challenge, 64 bytes, with a pad action at the start, for a total of 65 bytes: `[2, ...]`.
 - `[TCP]` While waiting for any action, listen for the machine's state, and report back to the server `[0]` OFF or `[1]` ON. If first connected, send it after challenge sent (by design).
 - `[TCP]` Receive action flag with the answer: `[<action>, <answer>]`.
 - From there, do whatever the server wants. If disconnected, the node will go back to section `II` and start all over again.
