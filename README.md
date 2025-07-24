@@ -55,4 +55,4 @@ Always put the answer after the action: [1, ...]
 - `[TCP]` While waiting for any action, listen for the machine's state, and report back to the server `[0]` OFF or `[1]` ON. If first connected, send it after challenge sent (by design).
 - `[TCP]` Receive action flag with the answer: `[<action>, <answer>]`.
 - From there, do whatever the server wants. If disconnected, the node will go back to section `II` and start all over again.
-- If the server request a wrong action, like power ON when the machine is ON, nothing will happen, the node will send back the latest state of the machine to let the server sync with the node.
+- If the server request a wrong action, like power ON when the machine is ON, nothing will happen, the node will send back the latest state of the machine to sync.
