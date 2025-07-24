@@ -56,3 +56,70 @@ Always put the answer after the action: [1, ...]
 - `[TCP]` Receive action flag with the answer: `[<action>, <answer>]`.
 - From there, do whatever the server wants. If disconnected, the node will go back to section `II` and start all over again.
 - If the server request a wrong action, like power ON when the machine is ON, nothing will happen, the node will send back the latest state of the machine to sync.
+
+# Server implementation
+
+Dunno, you can make it yourself, this repo only contains the pico w part of the whole thing, you can have this test python script I use to test this though:
+
+```py
+import socket
+import sys
+import struct
+import os
+from blake3 import blake3
+import base64
+import time
+
+def main(argv):
+    multicast_group = argv[1]
+    multicast_port = int(argv[2])
+
+    multicast = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    multicast.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+    multicast.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    mreq = struct.pack("4sl", socket.inet_aton(multicast_group), socket.INADDR_ANY)
+    multicast.bind(('', multicast_port))
+    multicast.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    received = multicast.recvfrom(64)
+
+    multicast.close()
+    print(received)
+
+    result = blake3(received[0], key=base64.b64decode("<base64key>")).digest()
+
+    # Passive aggressive, answer the challenge, but dond care about the result.
+    verify = socket.socket()
+    verify.connect(received[1])
+    verify.sendall(result)
+    verify.close()
+
+    # Think of this server socket is always open, and the node can connect to at any time, pls don't do like this outside of testing.
+    server = socket.socket()
+    server.bind(("0.0.0.0", 7325))
+    server.listen(1)
+    endpoint, address = server.accept()
+    endpoint.sendall(os.urandom(64))
+    print("MAC address:", list(endpoint.recv(38)[:6]))
+
+    challenge = None
+    while True:
+        flag = endpoint.recv(1)
+
+        if flag == bytes([2]):
+            challenge = endpoint.recv(64)
+            print("Setting power ON")
+            endpoint.sendall(bytes([1]) + blake3(challenge, key=base64.b64decode("<base64key>")).digest())
+            time.sleep(1)
+        
+        if flag == bytes([1]):
+            print("Current: ON")
+        if flag == bytes([0]):
+            print("Current: OFF")
+
+if __name__ == '__main__':
+    if len(sys.argv) != 4:
+        print("Usage: {0} <group address> <port> <interface ip>".format(sys.argv[0]))
+        sys.exit(1)
+    main(sys.argv)
+```
