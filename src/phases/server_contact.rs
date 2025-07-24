@@ -175,9 +175,8 @@ pub async fn invoke(
                 power_switch.set_level(ACTIVATE_RELAY);
                 Timer::after_millis(500).await;
                 power_switch.set_level(DEACTIVATE_RELAY);
-            }
-            // No don't press it when it's already on.
-            if machine_state.get_level() == Level::High {
+            } else {
+                // No don't press it when it's already on.
                 // Send back already on state.
                 if let Err(_) = writer.write(&[1]).await {
                     board::serial_log("Can't obtain action & answer from server, breaking...");
@@ -192,9 +191,8 @@ pub async fn invoke(
                 power_switch.set_level(ACTIVATE_RELAY);
                 Timer::after_millis(500).await;
                 power_switch.set_level(DEACTIVATE_RELAY);
-            }
-            // No don't press it when it's already off.
-            if machine_state.get_level() == Level::Low {
+            } else {
+                // No don't press it when it's already off.
                 // Send back already on state.
                 if let Err(_) = writer.write(&[1]).await {
                     board::serial_log("Can't obtain action & answer from server, breaking...");
@@ -205,14 +203,14 @@ pub async fn invoke(
         }
         // Reset
         if action == 3 {
-            reset_switch.set_low();
+            reset_switch.set_level(ACTIVATE_RELAY);
             Timer::after_millis(500).await;
-            reset_switch.set_high();
+            reset_switch.set_level(DEACTIVATE_RELAY);
         }
     }
 
-    power_switch.set_high();
-    reset_switch.set_high();
+    power_switch.set_level(DEACTIVATE_RELAY);
+    reset_switch.set_level(DEACTIVATE_RELAY);
     let _ = socket.flush().await;
     socket.abort();
     socket.close();
